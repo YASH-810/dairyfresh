@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Search, ShoppingCart } from "lucide-react";
+import { Menu, Search, ShoppingCart, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 
 const NAV_LINKS = [
@@ -32,10 +32,18 @@ export default function Header() {
   const { db, currentUser, logout } = useStore();
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const cartCount = db.cart.reduce((sum, c) => sum + c.quantity, 0);
+
+  const links = [
+    ...NAV_LINKS,
+    ...(currentUser?.role === "ADMIN" ? [{ href: "/admin", label: "Admin" }] : []),
+    ...(currentUser?.role === "DELIVERY" ? [{ href: "/delivery", label: "Delivery" }] : []),
+  ];
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
+    setMenuOpen(false);
     router.push(q ? `/products?q=${encodeURIComponent(q)}` : "/products");
   }
 
@@ -51,21 +59,11 @@ export default function Header() {
         </div>
 
         <nav className="ml-auto hidden items-center gap-1 text-sm font-medium text-dairy md:flex">
-          {NAV_LINKS.map((l) => (
+          {links.map((l) => (
             <Link key={l.href} href={l.href} className="rounded-full px-3.5 py-2 transition-colors hover:bg-dairy/5">
               {l.label}
             </Link>
           ))}
-          {currentUser?.role === "ADMIN" && (
-            <Link href="/admin" className="rounded-full px-3.5 py-2 transition-colors hover:bg-dairy/5">
-              Admin
-            </Link>
-          )}
-          {currentUser?.role === "DELIVERY" && (
-            <Link href="/delivery" className="rounded-full px-3.5 py-2 transition-colors hover:bg-dairy/5">
-              Delivery
-            </Link>
-          )}
         </nav>
 
         <Link href="/cart" className="relative shrink-0 rounded-full p-2 text-dairy transition-colors hover:bg-dairy/5" aria-label="Cart">
@@ -78,27 +76,68 @@ export default function Header() {
         </Link>
 
         {currentUser ? (
-          <div className="flex shrink-0 items-center gap-3 text-sm">
+          <div className="hidden shrink-0 items-center gap-3 text-sm md:flex">
             <Link href="/dashboard" className="flex items-center gap-2 font-medium text-dairy">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-dairy text-xs font-bold text-white">
                 {currentUser.name[0]}
               </span>
-              <span className="hidden sm:inline">{currentUser.name.split(" ")[0]}</span>
+              <span>{currentUser.name.split(" ")[0]}</span>
             </Link>
             <button onClick={logout} className="text-foreground/50 transition-colors hover:text-dairy" aria-label="Logout">
               Logout
             </button>
           </div>
         ) : (
-          <Link href="/login" className="shrink-0 rounded-full bg-dairy px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-sky">
+          <Link href="/login" className="hidden shrink-0 rounded-full bg-dairy px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-sky md:block">
             Login
           </Link>
         )}
+
+        {currentUser && (
+          <Link href="/dashboard" className="shrink-0 md:hidden" aria-label="Account">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-dairy text-xs font-bold text-white">
+              {currentUser.name[0]}
+            </span>
+          </Link>
+        )}
+
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className="shrink-0 rounded-full p-2 text-dairy transition-colors hover:bg-dairy/5 md:hidden"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+        >
+          {menuOpen ? <X size={21} /> : <Menu size={21} />}
+        </button>
       </div>
 
       <div className="px-4 pb-3 md:hidden">
         <SearchBar q={q} setQ={setQ} onSearch={onSearch} placeholder="Search products…" />
       </div>
+
+      {menuOpen && (
+        <nav className="border-t border-dairy/10 px-4 py-2 text-sm font-medium text-dairy md:hidden">
+          {links.map((l) => (
+            <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)} className="block rounded-lg px-2 py-2.5 hover:bg-dairy/5">
+              {l.label}
+            </Link>
+          ))}
+          {currentUser ? (
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                logout();
+              }}
+              className="mt-1 block w-full rounded-lg px-2 py-2.5 text-left text-foreground/60 hover:bg-dairy/5"
+            >
+              Logout
+            </button>
+          ) : (
+            <Link href="/login" onClick={() => setMenuOpen(false)} className="mt-1 block rounded-lg px-2 py-2.5 text-sky hover:bg-dairy/5">
+              Login
+            </Link>
+          )}
+        </nav>
+      )}
     </header>
   );
 }

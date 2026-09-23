@@ -29,14 +29,24 @@ export default function Home() {
   return (
     <div>
       <section className="relative w-full overflow-hidden bg-dairy">
-        <div className="relative aspect-[4/3] w-full sm:aspect-[16/7] lg:aspect-[21/7]">
+        <div className="relative aspect-[1024/890] w-full sm:hidden">
+          <Image
+            src="/hero-m.png"
+            alt="Dairyfresh — Pure milk, pure goodness. Goodness in every bite."
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+        </div>
+        <div className="relative hidden sm:block sm:aspect-[16/7] lg:aspect-[21/7]">
           <Image
             src="/hero.png"
             alt="Dairyfresh — Pure milk, pure goodness. From our farms to your family."
             fill
             priority
             sizes="100vw"
-            className="object-cover object-[68%_center] sm:object-center"
+            className="object-cover"
           />
         </div>
       </section>
