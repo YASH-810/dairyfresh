@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DairyFresh
 
-## Getting Started
+Dairy e-commerce + subscription platform — see `CLAUDE.md` / `AGENTS.md` for the full project spec.
 
-First, run the development server:
+## Running locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo mode
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This build has no live Firebase project or Razorpay keys configured yet (see `CLAUDE.md` env vars), so it runs
+entirely client-side: product catalog, cart, orders, subscriptions, stock and the EDI timeline all live in one
+`localStorage` blob per browser (see `src/lib/store.tsx`), and payment is simulated. Log in from `/login` as any
+of the demo accounts below — no real password needed, one is just listed for reference.
 
-## Learn More
+| Role | Email | Password |
+|---|---|---|
+| Customer | `customer@dairyfresh.test` | `Demo@1234` |
+| Admin | `admin@dairyfresh.test` | `Demo@1234` |
+| Delivery | `delivery@dairyfresh.test` | `Demo@1234` |
+| B2B | `b2b@dairyfresh.test` | `Demo@1234` |
 
-To learn more about Next.js, take a look at the following resources:
+To reset the demo data, clear `localStorage` for the site (or open DevTools → Application → Local Storage →
+delete `dairyfresh_db_v1`) and refresh.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Wiring up the real backend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Swap the localStorage store for `firebase-admin` calls, add `NEXT_PUBLIC_FIREBASE_*` / `FIREBASE_ADMIN_*` env vars
+per `CLAUDE.md`, and replace `simulateRazorpayCheckout()` in `src/lib/payment.ts` with real Razorpay Checkout +
+webhook verification once keys exist.
