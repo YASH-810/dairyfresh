@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import {
   Sparkles,
   CheckCircle2,
@@ -15,26 +14,14 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { createSession, registerProfile } from "@/lib/auth";
-import { clientAuth } from "@/lib/firebase/client";
 import { demoUsers, DEMO_PASSWORD } from "@/lib/seed-data";
-import type { Role } from "@/lib/types";
+import type { Role, User } from "@/lib/types";
 
 const HOME: Record<Role, string> = {
   CUSTOMER: "/dashboard",
   B2B: "/dashboard",
   ADMIN: "/admin",
   DELIVERY: "/delivery",
-};
-
-const FIREBASE_ERRORS: Record<string, string> = {
-  "auth/operation-not-allowed":
-    "Email/Password provider is not enabled in Firebase Console. Enable it in Authentication > Sign-in method.",
-  "auth/invalid-credential": "Wrong email or password.",
-  "auth/email-already-in-use": "An account with this email already exists. Log in instead.",
-  "auth/weak-password": "Password must be at least 6 characters.",
-  "auth/invalid-email": "Enter a valid email address.",
-  "auth/too-many-requests": "Too many attempts. Try again in a few minutes.",
 };
 
 const PORTAL_CONFIG: Record<
@@ -244,7 +231,7 @@ const ROLE_TABS: { value: Role; label: string; icon: React.ComponentType<{ size?
 ];
 
 export default function AuthPortal({ role = "CUSTOMER" }: { role?: Role }) {
-  const { login } = useStore();
+  const { db, login } = useStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
@@ -266,7 +253,6 @@ export default function AuthPortal({ role = "CUSTOMER" }: { role?: Role }) {
   const [city, setCity] = useState("Pune");
   const [pincode, setPincode] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
   const [quickFilledNotice, setQuickFilledNotice] = useState<string | null>(null);
 
   function handleRegisterQuickFill() {
@@ -284,39 +270,34 @@ export default function AuthPortal({ role = "CUSTOMER" }: { role?: Role }) {
     setTimeout(() => setQuickFilledNotice(null), 3500);
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // Mock auth: any password is accepted; the email just picks (or creates) a local user.
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    setBusy(true);
-    const auth = clientAuth();
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password;
-    try {
-      if (mode === "register" && currentRole !== "ADMIN") {
-        const cred = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-        const res = await registerProfile(await cred.user.getIdToken(), {
-          name,
-          phone,
-          role: currentRole,
-          address: currentRole === "DELIVERY" ? undefined : { line, area, city, pincode },
-        });
-        if ("error" in res) {
-          await cred.user.delete();
-          throw new Error(res.error);
-        }
-      } else {
-        await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      }
-      const res = await createSession(await auth.currentUser!.getIdToken(true));
-      if ("error" in res) throw new Error(res.error);
-      login(res.user);
-      router.push(next ?? HOME[res.user.role]);
-    } catch (err) {
-      const code = (err as { code?: string }).code;
-      setError((code && FIREBASE_ERRORS[code]) ?? (err as Error).message);
-    } finally {
-      setBusy(false);
+    const existing = db.users.find((u) => u.email.toLowerCase() === cleanEmail);
+    let user: User;
+
+    if (mode === "register") {
+      if (existing) return setError("An account with this email already exists. Log in instead.");
+      user = {
+        id: `u_${Date.now()}`,
+        name: name.trim(),
+        email: cleanEmail,
+        phone,
+        role: currentRole,
+        addresses: currentRole === "DELIVERY" ? [] : [{ id: "addr1", line, area, city, pincode, isDefault: true }],
+        walletBalance: 0,
+        loyaltyPoints: 0,
+      };
+    } else {
+      if (!existing) return setError("No account found for this email. Register first.");
+      if (existing.role !== currentRole) return setError(`This account is a ${existing.role} account. Pick that tab to log in.`);
+      user = existing;
     }
+
+    login(user);
+    router.push(next ?? HOME[user.role]);
   }
 
   // Demo user for the currently active role tab
@@ -510,12 +491,9 @@ export default function AuthPortal({ role = "CUSTOMER" }: { role?: Role }) {
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
 
         <button
-          disabled={busy}
           className="w-full rounded-full bg-dairy py-2.5 font-medium text-white transition hover:bg-sky disabled:opacity-60"
         >
-          {busy
-            ? "Please wait…"
-            : mode === "login"
+          {mode === "login"
             ? `Log in as ${currentRole === "B2B" ? "B2B Buyer" : currentRole === "DELIVERY" ? "Delivery Staff" : currentRole === "ADMIN" ? "Admin" : "Customer"}`
             : `Create ${currentRole === "B2B" ? "B2B" : currentRole === "DELIVERY" ? "Delivery" : "Customer"} Account`}
         </button>

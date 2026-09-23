@@ -1,7 +1,8 @@
 "use client";
 
-// Client-side "backend": login/registration use real Firebase Auth + Firestore `users`
-// (see lib/auth.ts), but the rest of the mutable state (cart, orders, stock,
+// Client-side "backend": mock auth (no passwords, no Firebase) — the logged-in uid/role live
+// in df_uid/df_role cookies so proxy.ts can gate /admin, /delivery and /dashboard. The rest
+// of the mutable state (cart, orders, stock,
 // subscriptions, EDI timeline, wallet/loyalty) lives in one localStorage blob shared by
 // whichever demo role is logged in in this browser. The shape mirrors the Firestore data
 // model 1:1, so swapping in real `firebase-admin` calls later means replacing the actions
@@ -33,8 +34,6 @@ import type {
 } from "./types";
 import { buildX12_846, buildX12_850, buildX12_810, EDI_REORDER_QTY } from "./edi";
 import { computeDeliveryFee, todayIST } from "./format";
-import { endSession } from "./auth";
-import { clientAuth } from "./firebase/client";
 
 export type CartItem = { productId: string; quantity: number };
 
@@ -50,6 +49,16 @@ type DB = {
 };
 
 const STORAGE_KEY = "dairyfresh_db_v1";
+const WEEK = 60 * 60 * 24 * 7;
+
+function setCookie(name: string, value: string, maxAge = WEEK) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
+}
+
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 function seedDB(): DB {
   return {
@@ -91,7 +100,7 @@ type Ctx = {
   db: DB;
   currentUser: User | null;
   login: (user: User) => void;
-  logout: () => Promise<void>;
+  logout: () => void;
   addToCart: (productId: string, quantity: number) => void;
   updateCartQty: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
@@ -134,39 +143,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [uid, setUid] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  // Profile comes from Firestore (via the session cookie); wallet/orders etc. still live in the
-  // local store, so keep an existing local record and just refresh identity fields.
+  // Registering adds the user to the local store; logging in as an existing user keeps their
+  // local record (wallet/orders etc.) and just refreshes identity fields.
   const login = useCallback((user: User) => {
     setDb((prev) => {
       const local = prev.users.find((u) => u.id === user.id);
       const merged = local ? { ...local, name: user.name, email: user.email, role: user.role } : user;
       return { ...prev, users: [merged, ...prev.users.filter((u) => u.id !== user.id)] };
     });
+    setCookie("df_uid", user.id);
+    setCookie("df_role", user.role);
     setUid(user.id);
   }, []);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
+    setCookie("df_uid", "", 0);
+    setCookie("df_role", "", 0);
     setUid(null);
-    try {
-      await endSession();
-      if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-        await clientAuth().signOut();
-      }
-    } catch (err) {
-      console.warn("Error signing out:", err);
-    }
   }, []);
 
   useEffect(() => {
     setDb(loadDB());
+    setUid(getCookie("df_uid"));
     setHydrated(true);
-    fetch("/api/auth/session")
-      .then((res) => (res.ok ? res.json() : { user: null }))
-      .then((data) => {
-        if (data?.user) login(data.user);
-      })
-      .catch((err) => console.warn("Session check notice:", err));
-  }, [login]);
+  }, []);
 
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
