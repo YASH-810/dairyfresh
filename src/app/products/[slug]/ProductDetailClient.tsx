@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { formatPrice, formatDate } from "@/lib/format";
+import { formatPrice, formatDate, priceFor } from "@/lib/format";
 import ProductThumb from "@/components/ProductThumb";
 import StarRating from "@/components/StarRating";
 
@@ -31,6 +32,11 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
     setComment("");
   }
 
+  function handleQuickFill() {
+    setRating(5);
+    setComment("Exceptional freshness and rich taste! Delivered right on time at 6:30 AM.");
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="grid gap-8 md:grid-cols-2">
@@ -53,8 +59,13 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
           <p className="mt-3 text-sm text-foreground/80">{product.description}</p>
 
           <div className="mt-4 flex items-baseline gap-3">
-            <span className="text-2xl font-bold text-dairy">{formatPrice(product.price)}</span>
-            {currentUser?.role === "B2B" && <span className="text-sm text-foreground/60">B2B: {formatPrice(product.b2bPrice)}</span>}
+            <span className="text-2xl font-bold text-dairy">{formatPrice(priceFor(product, currentUser?.role))}</span>
+            {currentUser?.role === "B2B" && (
+              <>
+                <span className="text-sm text-foreground/40 line-through">{formatPrice(product.price)}</span>
+                <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs font-semibold text-gold">B2B price</span>
+              </>
+            )}
           </div>
 
           {product.stock === 0 ? (
@@ -86,7 +97,17 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
       </div>
 
       <section className="mt-10">
-        <h2 className="text-lg font-bold text-dairy">Reviews</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-dairy">Reviews</h2>
+          <button
+            type="button"
+            onClick={handleQuickFill}
+            className="inline-flex items-center gap-1 rounded-full border border-sky/30 bg-sky/10 px-2.5 py-1 text-xs font-medium text-sky hover:bg-sky/20 transition"
+          >
+            <Sparkles size={12} className="text-gold" />
+            <span>Quick Fill</span>
+          </button>
+        </div>
         <form onSubmit={submitReview} className="mt-3 flex flex-col gap-2 rounded-xl border border-dairy/10 p-4 sm:flex-row sm:items-center">
           <select value={rating} onChange={(e) => setRating(Number(e.target.value))} className="rounded border border-dairy/20 px-2 py-1.5 text-sm">
             {[5, 4, 3, 2, 1].map((r) => (
@@ -100,7 +121,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
             required
             className="flex-1 rounded border border-dairy/20 px-3 py-1.5 text-sm"
           />
-          <button className="rounded-full bg-dairy px-4 py-1.5 text-sm font-medium text-white">Post review</button>
+          <button type="submit" className="rounded-full bg-dairy px-4 py-1.5 text-sm font-medium text-white hover:bg-sky transition">Post review</button>
         </form>
         <ul className="mt-4 space-y-3">
           {product.reviews.map((r) => (

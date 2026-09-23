@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { computeDeliveryFee, formatPrice, todayIST } from "@/lib/format";
+import { computeDeliveryFee, formatPrice, priceFor, todayIST } from "@/lib/format";
 import { simulateRazorpayCheckout } from "@/lib/payment";
 import type { Slot } from "@/lib/types";
 
@@ -19,7 +19,7 @@ function CheckoutForm() {
 
   const address = currentUser?.addresses.find((a) => a.isDefault) ?? currentUser?.addresses[0];
   const lines = db.cart.map((c) => ({ product: db.products.find((p) => p.id === c.productId)!, quantity: c.quantity })).filter((l) => l.product);
-  const subtotal = lines.reduce((s, l) => s + l.product.price * l.quantity, 0);
+  const subtotal = lines.reduce((s, l) => s + priceFor(l.product, currentUser?.role) * l.quantity, 0);
   const coupon = couponFromCart ? db.coupons.find((c) => c.code === couponFromCart) : undefined;
   const discount = coupon ? (coupon.discountType === "PERCENT" ? Math.round(subtotal * (coupon.value / 100)) : Math.min(coupon.value, subtotal)) : 0;
   const deliveryFee = computeDeliveryFee(subtotal);

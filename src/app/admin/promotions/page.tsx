@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Sparkles } from "lucide-react";
 import { z } from "zod";
 import { useStore } from "@/lib/store";
 import ProductThumb from "@/components/ProductThumb";
@@ -29,6 +30,16 @@ export default function AdminPromotionsPage() {
     setForm({ code: "", discountType: "PERCENT", value: "", validTill: "2026-12-31" });
   }
 
+  function handleQuickFill() {
+    setForm({
+      code: "FESTIVE25",
+      discountType: "PERCENT",
+      value: "25",
+      validTill: "2026-12-31",
+    });
+    setError("");
+  }
+
   const festiveBundles = db.products.filter((p) => p.category === "Festive Bundles");
 
   return (
@@ -36,7 +47,17 @@ export default function AdminPromotionsPage() {
       <h1 className="text-2xl font-bold text-dairy">Promotions</h1>
 
       <section className="mt-4">
-        <h2 className="font-semibold text-dairy">Coupons</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-dairy">Coupons</h2>
+          <button
+            type="button"
+            onClick={handleQuickFill}
+            className="inline-flex items-center gap-1 rounded-full border border-sky/30 bg-sky/10 px-2.5 py-1 text-xs font-medium text-sky hover:bg-sky/20 transition"
+          >
+            <Sparkles size={12} className="text-gold" />
+            <span>Quick Fill</span>
+          </button>
+        </div>
         <table className="mt-2 w-full text-sm">
           <thead className="text-left text-xs uppercase text-foreground/60">
             <tr><th className="py-1">Code</th><th>Discount</th><th>Valid till</th></tr>
@@ -72,7 +93,7 @@ export default function AdminPromotionsPage() {
             <label className="block text-xs text-foreground/60">Valid till</label>
             <input type="date" value={form.validTill} onChange={(e) => setForm((f) => ({ ...f, validTill: e.target.value }))} className="rounded border border-dairy/20 px-2 py-1 text-sm" />
           </div>
-          <button className="rounded-full bg-dairy px-4 py-1.5 text-sm font-medium text-white">Add coupon</button>
+          <button type="submit" className="rounded-full bg-dairy px-4 py-1.5 text-sm font-medium text-white hover:bg-sky transition">Add coupon</button>
         </form>
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </section>

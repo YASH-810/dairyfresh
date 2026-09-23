@@ -21,7 +21,7 @@ of the demo accounts below — no real password needed, one is just listed for r
 | Role | Email | Password |
 |---|---|---|
 | Customer | `customer@dairyfresh.test` | `Demo@1234` |
-| Admin | `admin@dairyfresh.test` | `Demo@1234` |
+| Admin | `yash24beit@student.mes.ac.in` | `Demo@1234` |
 | Delivery | `delivery@dairyfresh.test` | `Demo@1234` |
 | B2B | `b2b@dairyfresh.test` | `Demo@1234` |
 

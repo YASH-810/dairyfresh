@@ -39,8 +39,8 @@ export const demoUsers: User[] = [
   },
   {
     id: "u_admin",
-    name: "Rohan Deshpande",
-    email: "admin@dairyfresh.test",
+    name: "Yash",
+    email: "yash24beit@student.mes.ac.in",
     phone: "9876500001",
     role: "ADMIN",
     addresses: [],
@@ -125,11 +125,13 @@ export const products: Product[] = [
   p("shrikhand-400g", "Kesar Shrikhand", "Sweets", 16000, "400g", 30, "v3", { imageEmoji: "🍨", isSubscribable: false, imageUrl: "/product/kesar-shrikhand.png" }),
   p("diwali-bundle", "Diwali Festive Bundle", "Festive Bundles", 89900, "1 pack", 18, "v1", {
     imageEmoji: "🎁",
+    imageUrl: "/product/festive-bundle.png",
     isSubscribable: false,
     description: "Ghee, kaju katli, gulab jamun and paneer — a festive gift box for the season.",
   }),
   p("family-pack-bundle", "Weekly Family Essentials Pack", "Festive Bundles", 45000, "1 pack", 22, "v1", {
     imageEmoji: "📦",
+    imageUrl: "/product/essentials-pack.png",
     isSubscribable: false,
     description: "Milk, curd, paneer and butter bundled for the week at a bundle discount.",
   }),

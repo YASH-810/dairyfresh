@@ -1,7 +1,7 @@
 "use client";
 
-// Client-side "backend": this demo ships with no live Firebase project (no API keys
-// configured yet — see CLAUDE.md env vars), so all mutable state (cart, orders, stock,
+// Client-side "backend": login/registration use real Firebase Auth + Firestore `users`
+// (see lib/auth.ts), but the rest of the mutable state (cart, orders, stock,
 // subscriptions, EDI timeline, wallet/loyalty) lives in one localStorage blob shared by
 // whichever demo role is logged in in this browser. The shape mirrors the Firestore data
 // model 1:1, so swapping in real `firebase-admin` calls later means replacing the actions
@@ -33,6 +33,8 @@ import type {
 } from "./types";
 import { buildX12_846, buildX12_850, buildX12_810, EDI_REORDER_QTY } from "./edi";
 import { computeDeliveryFee, todayIST } from "./format";
+import { endSession, getSessionUser } from "./auth";
+import { clientAuth } from "./firebase/client";
 
 export type CartItem = { productId: string; quantity: number };
 
@@ -48,7 +50,6 @@ type DB = {
 };
 
 const STORAGE_KEY = "dairyfresh_db_v1";
-const SESSION_COOKIE = "df_uid";
 
 function seedDB(): DB {
   return {
@@ -86,25 +87,11 @@ function loadDB(): DB {
   }
 }
 
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function setCookie(name: string, value: string) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
-}
-
-function deleteCookie(name: string) {
-  document.cookie = `${name}=; path=/; max-age=0`;
-}
-
 type Ctx = {
   db: DB;
   currentUser: User | null;
-  login: (userId: string) => void;
-  logout: () => void;
+  login: (user: User) => void;
+  logout: () => Promise<void>;
   addToCart: (productId: string, quantity: number) => void;
   updateCartQty: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
@@ -137,8 +124,7 @@ type Ctx = {
   adminGenerateTomorrowOrders: () => number;
   adminSimulateLowStock: (productId?: string) => EdiDocument | null;
   adminAdvanceEdi: (poId: string) => Promise<void>;
-  deliveryMarkDelivered: (orderId: string) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus, deliveryStaffId?: string) => void;
 };
 
 const StoreContext = createContext<Ctx | null>(null);
@@ -148,11 +134,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [uid, setUid] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
+  // Profile comes from Firestore (via the session cookie); wallet/orders etc. still live in the
+  // local store, so keep an existing local record and just refresh identity fields.
+  const login = useCallback((user: User) => {
+    setDb((prev) => {
+      const local = prev.users.find((u) => u.id === user.id);
+      const merged = local ? { ...local, name: user.name, email: user.email, role: user.role } : user;
+      return { ...prev, users: [merged, ...prev.users.filter((u) => u.id !== user.id)] };
+    });
+    setUid(user.id);
+  }, []);
+
+  const logout = useCallback(async () => {
+    setUid(null);
+    await Promise.all([endSession(), clientAuth().signOut()]);
+  }, []);
+
   useEffect(() => {
     setDb(loadDB());
-    setUid(getCookie(SESSION_COOKIE));
     setHydrated(true);
-  }, []);
+    getSessionUser().then((u) => u && login(u));
+  }, [login]);
 
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
@@ -160,15 +162,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const currentUser = useMemo(() => db.users.find((u) => u.id === uid) ?? null, [db.users, uid]);
 
-  const login = useCallback((userId: string) => {
-    setCookie(SESSION_COOKIE, userId);
-    setUid(userId);
-  }, []);
-
-  const logout = useCallback(() => {
-    deleteCookie(SESSION_COOKIE);
-    setUid(null);
-  }, []);
 
   const addToCart = useCallback((productId: string, quantity: number) => {
     setDb((prev) => {
@@ -414,16 +407,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [db.ediDocuments, db.products]);
 
-  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
+  // deliveryStaffId: the delivery person acting on the order claims it; admin changes keep the existing one
+  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus, deliveryStaffId?: string) => {
     setDb((prev) => ({
       ...prev,
       orders: prev.orders.map((o) =>
-        o.id === orderId ? { ...o, status, deliveryStaffId: status === "OUT_FOR_DELIVERY" ? "u_delivery" : o.deliveryStaffId } : o,
+        o.id === orderId ? { ...o, status, deliveryStaffId: deliveryStaffId ?? o.deliveryStaffId } : o,
       ),
     }));
   }, []);
-
-  const deliveryMarkDelivered = useCallback((orderId: string) => updateOrderStatus(orderId, "DELIVERED"), [updateOrderStatus]);
 
   const value: Ctx = {
     db,
@@ -447,7 +439,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     adminGenerateTomorrowOrders,
     adminSimulateLowStock,
     adminAdvanceEdi,
-    deliveryMarkDelivered,
     updateOrderStatus,
   };
 

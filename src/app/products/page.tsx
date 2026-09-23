@@ -14,7 +14,6 @@ function Catalog() {
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
   const [category, setCategory] = useState<Category | "">((params.get("category") as Category) ?? "");
-  const [vegOnly, setVegOnly] = useState(false);
   const [maxPrice, setMaxPrice] = useState(90000);
   const [sort, setSort] = useState<Sort>("relevance");
 
@@ -31,7 +30,6 @@ function Catalog() {
     let list = db.products.filter((p) => p.price <= maxPrice);
     if (q) list = list.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()) || p.category.toLowerCase().includes(q.toLowerCase()));
     if (category) list = list.filter((p) => p.category === category);
-    if (vegOnly) list = list.filter((p) => p.isVeg);
 
     switch (sort) {
       case "price-asc": return [...list].sort((a, b) => a.price - b.price);
@@ -39,7 +37,7 @@ function Catalog() {
       case "rating": return [...list].sort((a, b) => avg(b) - avg(a));
       default: return list;
     }
-  }, [db.products, q, category, vegOnly, maxPrice, sort]);
+  }, [db.products, q, category, maxPrice, sort]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -58,9 +56,6 @@ function Catalog() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
-        <label className="flex items-center gap-1.5 text-sm">
-          <input type="checkbox" checked={vegOnly} onChange={(e) => setVegOnly(e.target.checked)} /> Veg only
-        </label>
         <label className="flex items-center gap-1.5 text-sm">
           Max ₹{(maxPrice / 100).toFixed(0)}
           <input type="range" min={2000} max={90000} step={1000} value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} />

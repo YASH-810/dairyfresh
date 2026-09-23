@@ -49,8 +49,8 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-dairy/10 bg-white/95 shadow-sm backdrop-blur pt-[env(safe-area-inset-top,0px)]">
-      <div className="mx-auto flex max-w-6xl items-center gap-5 px-4 py-3">
-        <Link href="/" className="shrink-0 transition-opacity hover:opacity-80">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 md:gap-5">
+        <Link href="/" className="order-last ml-auto shrink-0 transition-opacity hover:opacity-80 md:order-none md:ml-0">
           <Image src="/logo.png" alt="DairyFresh" width={178} height={89} className="h-11 w-auto object-contain sm:h-14" priority />
         </Link>
 
@@ -103,7 +103,7 @@ export default function Header() {
 
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="shrink-0 rounded-full p-2 text-dairy transition-colors hover:bg-dairy/5 md:hidden"
+          className="order-first shrink-0 rounded-full p-2 text-dairy transition-colors hover:bg-dairy/5 md:hidden"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
         >
           {menuOpen ? <X size={21} /> : <Menu size={21} />}

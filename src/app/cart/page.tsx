@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
-import { computeDeliveryFee, formatPrice } from "@/lib/format";
+import { computeDeliveryFee, formatPrice, priceFor } from "@/lib/format";
 import ProductThumb from "@/components/ProductThumb";
 
 export default function CartPage() {
@@ -18,7 +18,7 @@ export default function CartPage() {
     .map((c) => ({ product: db.products.find((p) => p.id === c.productId), quantity: c.quantity }))
     .filter((l): l is { product: NonNullable<typeof l.product>; quantity: number } => !!l.product);
 
-  const subtotal = lines.reduce((s, l) => s + l.product.price * l.quantity, 0);
+  const subtotal = lines.reduce((s, l) => s + priceFor(l.product, currentUser?.role) * l.quantity, 0);
   const coupon = applied ? db.coupons.find((c) => c.code === applied) : undefined;
   const discount = coupon ? (coupon.discountType === "PERCENT" ? Math.round(subtotal * (coupon.value / 100)) : Math.min(coupon.value, subtotal)) : 0;
   const deliveryFee = computeDeliveryFee(subtotal);
@@ -53,7 +53,7 @@ export default function CartPage() {
                 <ProductThumb product={product} className="h-14 w-14 shrink-0 rounded-lg" iconClassName="h-9 w-9" sizes="56px" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium text-dairy">{product.name}</div>
-                  <div className="text-xs text-foreground/60">{product.unit} · {formatPrice(product.price)}</div>
+                  <div className="text-xs text-foreground/60">{product.unit} · {formatPrice(priceFor(product, currentUser?.role))}</div>
                 </div>
                 <div className="flex items-center rounded-full border border-dairy/20">
                   <button className="px-2.5 py-1" onClick={() => updateCartQty(product.id, quantity - 1)}>−</button>

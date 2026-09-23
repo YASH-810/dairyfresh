@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import type { Product } from "@/lib/types";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, priceFor } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import ProductThumb from "@/components/ProductThumb";
 import StarRating from "@/components/StarRating";
 
 export default function ProductCard({ product }: { product: Product }) {
-  const { addToCart } = useStore();
+  const { addToCart, currentUser } = useStore();
+  const isB2B = currentUser?.role === "B2B";
   const avgRating = product.reviews.length
     ? product.reviews.reduce((s, r) => s + r.rating, 0) / product.reviews.length
     : null;
@@ -39,7 +40,8 @@ export default function ProductCard({ product }: { product: Product }) {
             </div>
           )}
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="font-bold text-dairy">{formatPrice(product.price)}</span>
+            <span className="font-bold text-dairy">{formatPrice(priceFor(product, currentUser?.role))}</span>
+            {isB2B && <span className="text-xs text-foreground/40 line-through">{formatPrice(product.price)}</span>}
           </div>
           {product.stock <= product.lowStockThreshold && product.stock > 0 && (
             <div className="text-[11px] font-medium text-red-600">Only {product.stock} left</div>

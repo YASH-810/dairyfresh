@@ -1,8 +1,15 @@
+import type { Product, Role } from "./types";
+
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" });
 
 // prices are stored as integer paise
 export function formatPrice(paise: number): string {
   return inr.format(paise / 100);
+}
+
+// B2B accounts pay the wholesale price everywhere (cart, checkout, order)
+export function priceFor(product: Product, role?: Role): number {
+  return role === "B2B" ? product.b2bPrice : product.price;
 }
 
 export function formatDate(iso: string): string {
