@@ -26,8 +26,24 @@ const registerSchema = z.object({
 });
 
 async function loadUser(uid: string): Promise<User | null> {
-  const snap = await adminDb().collection("users").doc(uid).get();
-  return snap.exists ? ({ ...(snap.data() as Omit<User, "id">), id: uid }) : null;
+  try {
+    const snap = await adminDb().collection("users").doc(uid).get();
+    if (!snap.exists) return null;
+    const d = snap.data() || {};
+    return {
+      id: uid,
+      name: String(d.name ?? ""),
+      email: String(d.email ?? ""),
+      phone: String(d.phone ?? ""),
+      role: (d.role as User["role"]) ?? "CUSTOMER",
+      addresses: Array.isArray(d.addresses) ? d.addresses : [],
+      walletBalance: Number(d.walletBalance ?? 0),
+      loyaltyPoints: Number(d.loyaltyPoints ?? 0),
+    };
+  } catch (err) {
+    console.error("loadUser error:", err);
+    return null;
+  }
 }
 
 // Called right after the browser creates the Firebase Auth account.
@@ -41,7 +57,8 @@ export async function registerProfile(idToken: string, input: z.input<typeof reg
     const { uid, email } = await adminAuth().verifyIdToken(idToken);
     const ref = adminDb().collection("users").doc(uid);
     // Profile (and role) is written once; re-calling can't switch roles.
-    if ((await ref.get()).exists) return { error: "Profile already exists" };
+    const existing = await ref.get();
+    if (existing.exists) return { error: "Profile already exists" };
 
     const user: Omit<User, "id"> = {
       name,
@@ -78,7 +95,8 @@ export async function createSession(idToken: string): Promise<Result> {
     if (!user) return { error: "No profile found for this account. Please register." };
 
     const cookie = await adminAuth().createSessionCookie(idToken, { expiresIn: SESSION_MS });
-    (await cookies()).set(SESSION_COOKIE, cookie, {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE, cookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -100,16 +118,25 @@ export async function createSession(idToken: string): Promise<Result> {
 }
 
 export async function getSessionUser(): Promise<User | null> {
-  const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!cookie) return null;
   try {
+    const cookieStore = await cookies();
+    const cookie = cookieStore.get(SESSION_COOKIE)?.value;
+    if (!cookie) return null;
     const { uid } = await adminAuth().verifySessionCookie(cookie);
     return await loadUser(uid);
-  } catch {
+  } catch (err) {
+    console.warn("getSessionUser verification error:", (err as Error)?.message || err);
     return null;
   }
 }
 
-export async function endSession() {
-  (await cookies()).delete(SESSION_COOKIE);
+export async function endSession(): Promise<{ success: boolean }> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(SESSION_COOKIE);
+    return { success: true };
+  } catch (err) {
+    console.warn("endSession error:", err);
+    return { success: false };
+  }
 }

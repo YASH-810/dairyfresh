@@ -16,7 +16,13 @@ const firebaseConfig = {
 
 // Lazy initialization to avoid breaking SSR / prerendering at build time
 export function getClientApp() {
-  return getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  if (getApps().length > 0) return getApp();
+  if (!firebaseConfig.apiKey) {
+    throw new Error(
+      "NEXT_PUBLIC_FIREBASE_API_KEY is not configured. Please ensure your .env.local file contains all NEXT_PUBLIC_FIREBASE_* variables and restart the Next.js dev server."
+    );
+  }
+  return initializeApp(firebaseConfig);
 }
 
 export function clientAuth() {

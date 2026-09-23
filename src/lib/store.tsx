@@ -33,7 +33,7 @@ import type {
 } from "./types";
 import { buildX12_846, buildX12_850, buildX12_810, EDI_REORDER_QTY } from "./edi";
 import { computeDeliveryFee, todayIST } from "./format";
-import { endSession, getSessionUser } from "./auth";
+import { endSession } from "./auth";
 import { clientAuth } from "./firebase/client";
 
 export type CartItem = { productId: string; quantity: number };
@@ -147,13 +147,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     setUid(null);
-    await Promise.all([endSession(), clientAuth().signOut()]);
+    try {
+      await endSession();
+      if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+        await clientAuth().signOut();
+      }
+    } catch (err) {
+      console.warn("Error signing out:", err);
+    }
   }, []);
 
   useEffect(() => {
     setDb(loadDB());
     setHydrated(true);
-    getSessionUser().then((u) => u && login(u));
+    fetch("/api/auth/session")
+      .then((res) => (res.ok ? res.json() : { user: null }))
+      .then((data) => {
+        if (data?.user) login(data.user);
+      })
+      .catch((err) => console.warn("Session check notice:", err));
   }, [login]);
 
   useEffect(() => {
